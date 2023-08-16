@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "cd front-end && npm run dev",
     "deploy:cdk": "cd cdk-infra && aws-vault exec --no-session sandbox -- npx cdk deploy",
-    "deploy:sst": "cd sst-infra && aws-vault exec --no-session sandbox -- npx sst deploy"
+    "deploy:sst": "cd sst-infra && aws-vault exec --no-session sandbox -- npm run deploy"
   },
   "author": "",
   "license": "ISC"
