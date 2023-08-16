@@ -1,0 +1,13 @@
+{
+  "name": "nextjs-learning",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "cd front-end && npm run dev",
+    "deploy:cdk": "cd cdk-infra && aws-vault exec --no-session sandbox -- npx cdk deploy",
+    "deploy:sst": "cd sst-infra && aws-vault exec --no-session sandbox -- npx sst deploy"
+  },
+  "author": "",
+  "license": "ISC"
+}

@@ -1,0 +1,31 @@
+- Multiple body tags causes “Text content does not match server-rendered HTML“ error
+  - Only the last is rendered
+- Multiple html tags causes “Text content does not match server-rendered HTML“ error
+  - Only the first tag is rendered, any content under the subsequent tags is not rendered
+- <Suspense> waits for an asynchronous component to finish rendered and displays a fallback display until that point
+  - Sibling and nested <Suspense> boundaries will be await separately allowing for streaming of partial context and faster (at least) partial loads of the page
+- Parallel routes can be rendered together using “@” syntax in directory naming
+  - They are passed as renderable ‘slots’ (like children) to the page component
+  - This can be used for complex layout/rendering needs or to take advantage of the nextjs conventions of error.js etc for each parallel route
+  - Why use parallel routes over multiple React components and manipulate them directly?
+    - This isn’t clear yet but nextjs will inject them as props for you and presumably a bunch of other optimisations and nextjs lifecycle consistency will be available for free.
+- Intercepted routes can be used to render a route differently if navigated to from a particular context, e.g. a photo is navigated to from a gallery and you want to display it as a modal
+  - Route is still available to be navigated to directly as a standalone page
+  - An intercepted route is rendered within the current `layout` and not in the route’s native layout.
+  - Looks like there might be some issues - https://github.com/vercel/next.js/issues/49662, not sure how stable it is?
+- Backend logic can be included in a next app by using `routes.ts` files with functions to handle API calls
+- Deploying with SST
+  - SST comes with a high level construct using open-next to deploy a Next app into AWS Lambda with Cloudfront etc.
+    - A warmer lambda can be deployed
+    - An image optimisation lambda can be deployed
+  - App deploys but there is no modal when using incremental routes, when running locally the modal presents but in AWS is just loads the page.
+- Deploying with CDK to Fargate
+  - Running the app locally in a Docker image does supports intercepted routes and streaming html
+  - Running app in Fargate does supports intercepted routes and streaming html
+  - With 256 cpu/memory rendering is slow
+    - Bumping specs didn’t give a meaningful increase in speed
+    - Lighthouse was happy with the performance event with part of the page (streaming) resolving in 10 seconds
+- Use SWR for data fetching?
+- Adding Cloudfront in front of ALB with HTTPS and terminating SSL at the the ALB instead of Cloudfront
+  - Some good info here - https://github.com/aws/aws-cdk/issues/7120#issuecomment-1046106449
+- HTTPS with an application load balancer requires a custom domain

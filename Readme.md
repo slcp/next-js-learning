@@ -1,0 +1,1 @@
+Just some play with NextJS and deployments to AWS using SST (Lambda/Cloudfront) and CDK (Fargate)
