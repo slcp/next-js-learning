@@ -18,7 +18,7 @@
   - SST comes with a high level construct using open-next to deploy a Next app into AWS Lambda with Cloudfront etc.
     - A warmer lambda can be deployed
     - An image optimisation lambda can be deployed
-  - App deploys but there is no modal when using incremental routes, when running locally the modal presents but in AWS is just loads the page.
+  - App deploys but there intercepted routes does not appear to work, when running locally these work as expected in AWS is just loads the page. Incremental loading looks like it has the same issue, this makes senses given that lambda can only return one response and not a multiple or a stream. Is this something open-next can/are looking to support?
 - Deploying with CDK to Fargate
   - Running the app locally in a Docker image does supports intercepted routes and streaming html
   - Running app in Fargate does supports intercepted routes and streaming html
@@ -29,3 +29,6 @@
 - Adding Cloudfront in front of ALB with HTTPS and terminating SSL at the the ALB instead of Cloudfront
   - Some good info here - https://github.com/aws/aws-cdk/issues/7120#issuecomment-1046106449
 - HTTPS with an application load balancer requires a custom domain
+- API routes
+  - Node minimum of 18.3 required to use `Response.json()`
+- CDK, `ContainerImage.fromDockerImageAsset(dockerFile)` will always use docker under the hood. My docker client was not logged in and couldn't pull a new base image, `podman` had no issues. It would nice to be able to ask CDK to use `podman`.

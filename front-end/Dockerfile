@@ -1,4 +1,4 @@
-FROM node:16.20.2-alpine3.18
+FROM node:18.17.1-alpine3.18
 # Setting working directory. All the path will be relative to WORKDIR
 WORKDIR /usr/src/app
 # Installing dependencies
