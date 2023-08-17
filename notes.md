@@ -32,3 +32,7 @@
 - API routes
   - Node minimum of 18.3 required to use `Response.json()`
 - CDK, `ContainerImage.fromDockerImageAsset(dockerFile)` will always use docker under the hood. My docker client was not logged in and couldn't pull a new base image, `podman` had no issues. It would nice to be able to ask CDK to use `podman`.
+- generateStaticParams
+  - Can be used to generate static content at build time for dynamic routes BUT it does break streaming or dynamic rendering of content
+    - Remember: streaming requires loading.js or Suspense boundaries
+  - [https://github.com/vercel/next.js/issues/43350](https://github.com/vercel/next.js/issues/43350) explains more
