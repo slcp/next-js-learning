@@ -36,3 +36,5 @@
   - Can be used to generate static content at build time for dynamic routes BUT it does break streaming or dynamic rendering of content
     - Remember: streaming requires loading.js or Suspense boundaries
   - [https://github.com/vercel/next.js/issues/43350](https://github.com/vercel/next.js/issues/43350) explains more
+  - Combining dynamic routing with static generation for some of those paths elevates load time for the rest of the paths
+    - Streaming looks like the best you can get for of all the worlds, when rendering at build time on a dynamic route it would be better to build all possible dynamic paths on that route.
