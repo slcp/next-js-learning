@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "cd front-end && npm run dev",
+    "build": "cd front-end && npm run build",
     "deploy:cdk": "cd cdk-infra && aws-vault exec --no-session sandbox -- npx cdk deploy",
     "deploy:sst": "cd sst-infra && aws-vault exec --no-session sandbox -- npm run deploy"
   },
