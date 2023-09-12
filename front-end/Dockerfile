@@ -34,8 +34,6 @@ VOLUME ./artifact
 # If using npm comment out above and use below instead
 RUN npm run build
 
-RUN cp -r /app/.next/static artifact
-
 # Production image, copy all the files and run next
 FROM base AS runner
 WORKDIR /app
