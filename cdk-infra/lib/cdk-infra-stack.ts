@@ -6,10 +6,10 @@ import {
 } from "aws-cdk-lib/aws-cloudfront";
 import {
   LoadBalancerV2Origin,
+  OriginGroup,
   S3Origin,
 } from "aws-cdk-lib/aws-cloudfront-origins";
 import { Peer, Port, SecurityGroup, Vpc } from "aws-cdk-lib/aws-ec2";
-import { DockerImageAsset } from "aws-cdk-lib/aws-ecr-assets";
 import {
   Cluster,
   ContainerImage,
@@ -20,13 +20,18 @@ import { ApplicationLoadBalancedFargateService } from "aws-cdk-lib/aws-ecs-patte
 import { Bucket, BucketEncryption } from "aws-cdk-lib/aws-s3";
 import { BucketDeployment, Source } from "aws-cdk-lib/aws-s3-deployment";
 
+type Props = cdk.StackProps & {
+  containerTarballPath: string;
+};
+
 export class CdkInfraStack extends cdk.Stack {
-  constructor(scope: cdk.App, id: string, props?: cdk.StackProps) {
+  constructor(scope: cdk.App, id: string, props: Props) {
     super(scope, id, props);
 
     const APP_PORT = 3000;
-    const STATIC_NEXT_PATH = "_next/static";
-    const pathToDockerFile = "../front-end";
+    const STATIC_NEXT_PATH = "/_next/static";
+    const STATIC_REQUEST_PATH = `${STATIC_NEXT_PATH}/*`;
+    console.log("Container Tag: ", props.containerTarballPath);
 
     const vpc = new Vpc(this, "MyVpc", {
       maxAzs: 2,
@@ -37,13 +42,8 @@ export class CdkInfraStack extends cdk.Stack {
       cpu: 1024,
     });
 
-    const dockerFile = new DockerImageAsset(this, "DockerFileAsset", {
-      directory: pathToDockerFile,
-      file: "Dockerfile",
-    });
-
-    // cdk will build it and push it to en ecr repository
-    const image = ContainerImage.fromDockerImageAsset(dockerFile);
+    // An image has already been built and saved as a tarball locally
+    const image = ContainerImage.fromTarball(props.containerTarballPath);
 
     const container = taskDefinition.addContainer("MyContainer", {
       image,
@@ -92,42 +92,57 @@ export class CdkInfraStack extends cdk.Stack {
       targetUtilizationPercent: 70,
     });
 
+    // TODO: Separate Stack
     const staticAssetsBucket = new Bucket(this, "StaticAssets", {
       encryption: BucketEncryption.S3_MANAGED,
       enforceSSL: true,
-      bucketName: `next-static-assets-next-stack-sf`,
+      bucketName: "next-static-assets-next-stack-sf",
       autoDeleteObjects: true,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
+    // END TODO 
 
-    // directory to be zipped
-   const srcCodeDir = '../front-end';
-   // target directory
-   const trgBucketCodeDir = '_next/static';
-  // zip directory, hashed name
-   const CodeAsset = Source.asset(srcCodeDir);
+    // directory to be zipped relative to cdk-infra currently
+    const srcCodeDir = "./out/static";
+    // zip directory
+    const CodeAsset = Source.asset(srcCodeDir);
 
-   // Deploy as zip
-    const zipBucketDeployment = new BucketDeployment(this, 'Static Assets', {
-      sources: [CodeAsset],
-      destinationBucket: staticAssetsBucket,
-      destinationKeyPrefix: trgBucketCodeDir,
-      extract: true,
-      prune: false
+    // Deploy static files to the bucket
+    // new BucketDeployment(this, "Static Assets", {
+    //   sources: [CodeAsset],
+    //   destinationBucket: staticAssetsBucket,
+    //   destinationKeyPrefix: STATIC_NEXT_PATH,
+    //   extract: true,
+    //   // Don't delete old/stale static assets - stale clients will have them available
+    //   // TODO: They should be cleared up in time - how?
+    //   prune: false,
+    // });
+
+    const nextAppOrigin = new LoadBalancerV2Origin(
+      fargateService.loadBalancer,
+      {
+        protocolPolicy: OriginProtocolPolicy.HTTP_ONLY,
+      }
+    );
+
+    const s3Origin = new S3Origin(staticAssetsBucket);
+    // Failover to app in ECS - static assets are also baked in, deployment to s3 will never be at the same time exactly
+    const staticOriginGroup = new OriginGroup({
+      primaryOrigin: s3Origin,
+      fallbackOrigin: nextAppOrigin,
+      fallbackStatusCodes: [500, 502, 503, 504, 404],
     });
 
     // Cloudfront to sit in front of load balancer
     const cdn = new Distribution(this, "CDN", {
       defaultBehavior: {
-        origin: new LoadBalancerV2Origin(fargateService.loadBalancer, {
-          protocolPolicy: OriginProtocolPolicy.HTTP_ONLY,
-        }),
+        origin: nextAppOrigin,
         allowedMethods: AllowedMethods.ALLOW_ALL,
       },
-      // static assets behaviour
+      // Static assets behaviour
       additionalBehaviors: {
-        [STATIC_NEXT_PATH]: {
-          origin: new S3Origin(staticAssetsBucket),
+        [STATIC_REQUEST_PATH]: {
+          origin: staticOriginGroup,
         },
       },
     });
@@ -138,8 +153,5 @@ export class CdkInfraStack extends cdk.Stack {
     new cdk.CfnOutput(this, "StaticAssetsBucket", {
       value: staticAssetsBucket.bucketName,
     });
-
-    // Support 'standalone' deployment of NextJS
-    // TODO: Ensure contents of .next/static is copied to the bucket
   }
 }
