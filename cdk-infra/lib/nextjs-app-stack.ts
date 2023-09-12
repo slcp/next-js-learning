@@ -17,21 +17,22 @@ import {
   LogDriver,
 } from "aws-cdk-lib/aws-ecs";
 import { ApplicationLoadBalancedFargateService } from "aws-cdk-lib/aws-ecs-patterns";
-import { Bucket, BucketEncryption } from "aws-cdk-lib/aws-s3";
-import { BucketDeployment, Source } from "aws-cdk-lib/aws-s3-deployment";
+import { IBucket } from "aws-cdk-lib/aws-s3";
+import { Source } from "aws-cdk-lib/aws-s3-deployment";
 
 type Props = cdk.StackProps & {
   containerTarballPath: string;
+  staticAssetsBucket: IBucket;
 };
 
-export class CdkInfraStack extends cdk.Stack {
+export class NextJsAppStack extends cdk.Stack {
   constructor(scope: cdk.App, id: string, props: Props) {
     super(scope, id, props);
 
     const APP_PORT = 3000;
     const STATIC_NEXT_PATH = "/_next/static";
     const STATIC_REQUEST_PATH = `${STATIC_NEXT_PATH}/*`;
-    console.log("Container Tag: ", props.containerTarballPath);
+    const staticAssetsBucket = props.staticAssetsBucket;
 
     const vpc = new Vpc(this, "MyVpc", {
       maxAzs: 2,
@@ -91,16 +92,6 @@ export class CdkInfraStack extends cdk.Stack {
     scalableTarget.scaleOnCpuUtilization("cpuScaling", {
       targetUtilizationPercent: 70,
     });
-
-    // TODO: Separate Stack
-    const staticAssetsBucket = new Bucket(this, "StaticAssets", {
-      encryption: BucketEncryption.S3_MANAGED,
-      enforceSSL: true,
-      bucketName: "next-static-assets-next-stack-sf",
-      autoDeleteObjects: true,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
-    // END TODO 
 
     // directory to be zipped relative to cdk-infra currently
     const srcCodeDir = "./out/static";
