@@ -17,49 +17,30 @@ import {
   LogDriver,
 } from "aws-cdk-lib/aws-ecs";
 import { ApplicationLoadBalancedFargateService } from "aws-cdk-lib/aws-ecs-patterns";
-import { IBucket } from "aws-cdk-lib/aws-s3";
-import { Source } from "aws-cdk-lib/aws-s3-deployment";
+import { Bucket } from "aws-cdk-lib/aws-s3";
 
 type Props = cdk.StackProps & {
   containerTarballPath: string;
-  staticAssetsBucket: IBucket;
+  staticAssetsBucketArn: string;
+  appPort: number;
 };
 
 export class NextJsAppStack extends cdk.Stack {
   constructor(scope: cdk.App, id: string, props: Props) {
     super(scope, id, props);
 
-    const APP_PORT = 3000;
     const STATIC_NEXT_PATH = "/_next/static";
     const STATIC_REQUEST_PATH = `${STATIC_NEXT_PATH}/*`;
-    const staticAssetsBucket = props.staticAssetsBucket;
+    const APP_PORT = props.appPort;
+    const staticAssetsBucket = Bucket.fromBucketArn(
+      this,
+      "StaticAssetsBucket",
+      props.staticAssetsBucketArn
+    );
 
+    // VPC
     const vpc = new Vpc(this, "MyVpc", {
       maxAzs: 2,
-    });
-
-    const taskDefinition = new FargateTaskDefinition(this, "MyTaskDefinition", {
-      memoryLimitMiB: 2048,
-      cpu: 1024,
-    });
-
-    // An image has already been built and saved as a tarball locally
-    const image = ContainerImage.fromTarball(props.containerTarballPath);
-
-    const container = taskDefinition.addContainer("MyContainer", {
-      image,
-      // store the logs in cloudwatch
-      logging: LogDriver.awsLogs({ streamPrefix: "myexample-logs" }),
-    });
-
-    container.addPortMappings({
-      containerPort: APP_PORT,
-    });
-
-    const cluster = new Cluster(this, "MyECSCluster", {
-      clusterName: "MyECSCluster",
-      containerInsights: true,
-      vpc,
     });
 
     const securityGroup = new SecurityGroup(this, `My-security-group`, {
@@ -68,8 +49,35 @@ export class NextJsAppStack extends cdk.Stack {
       description: "My Security Group",
     });
 
+    // CONTAINER IMAGE
+    // An image has already been built and saved as a tarball locally
+    const image = ContainerImage.fromTarball(props.containerTarballPath);
+
+    // ECS
+    const taskDefinition = new FargateTaskDefinition(this, "MyTaskDefinition", {
+      memoryLimitMiB: 2048,
+      cpu: 1024,
+    });
+
+    taskDefinition
+      .addContainer("MyContainer", {
+        image,
+        // store the logs in cloudwatch
+        logging: LogDriver.awsLogs({ streamPrefix: "myexample-logs" }),
+      })
+      .addPortMappings({
+        containerPort: APP_PORT,
+      });
+
+    const cluster = new Cluster(this, "MyECSCluster", {
+      clusterName: "MyECSCluster",
+      containerInsights: true,
+      vpc,
+    });
+
     securityGroup.addIngressRule(Peer.anyIpv4(), Port.tcp(APP_PORT));
 
+    // FARGATE
     const fargateService = new ApplicationLoadBalancedFargateService(
       this,
       "MyFargateService",
@@ -89,26 +97,11 @@ export class NextJsAppStack extends cdk.Stack {
       maxCapacity: 2,
     });
 
-    scalableTarget.scaleOnCpuUtilization("cpuScaling", {
+    scalableTarget.scaleOnCpuUtilization("CPUScaling", {
       targetUtilizationPercent: 70,
     });
 
-    // directory to be zipped relative to cdk-infra currently
-    const srcCodeDir = "./out/static";
-    // zip directory
-    const CodeAsset = Source.asset(srcCodeDir);
-
-    // Deploy static files to the bucket
-    // new BucketDeployment(this, "Static Assets", {
-    //   sources: [CodeAsset],
-    //   destinationBucket: staticAssetsBucket,
-    //   destinationKeyPrefix: STATIC_NEXT_PATH,
-    //   extract: true,
-    //   // Don't delete old/stale static assets - stale clients will have them available
-    //   // TODO: They should be cleared up in time - how?
-    //   prune: false,
-    // });
-
+    // CLOUDFRONT
     const nextAppOrigin = new LoadBalancerV2Origin(
       fargateService.loadBalancer,
       {
@@ -141,7 +134,7 @@ export class NextJsAppStack extends cdk.Stack {
     new cdk.CfnOutput(this, "CDNOutput", {
       value: cdn.distributionDomainName,
     });
-    new cdk.CfnOutput(this, "StaticAssetsBucket", {
+    new cdk.CfnOutput(this, "StaticAssetsBucketOutput", {
       value: staticAssetsBucket.bucketName,
     });
   }

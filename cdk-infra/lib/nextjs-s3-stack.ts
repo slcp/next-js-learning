@@ -14,9 +14,5 @@ export class NextJsS3Stack extends cdk.Stack {
       autoDeleteObjects: true,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
-
-    new cdk.CfnOutput(this, "StaticAssetsBucket", {
-      value: this.staticAssetsBucket.bucketName,
-    });
   }
 }
