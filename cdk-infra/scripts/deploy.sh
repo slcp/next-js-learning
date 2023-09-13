@@ -1,5 +1,5 @@
 SCRIPT_DIR=$(dirname "$0")
-LOCAL_STATIC_ASSETS_TARGET_PATH="${SCRIPT_DIR}/../out./static"
+LOCAL_STATIC_ASSETS_TARGET_PATH="${SCRIPT_DIR}/../out/static"
 DOCKER_IMAGE_TAR_NAME="next-js-image.tar"
 TAR_OUT_FOLDER="${SCRIPT_DIR}/../out/tar"
 IMAGE_SAVE_PATH="${TAR_OUT_FOLDER}/${DOCKER_IMAGE_TAR_NAME}"
@@ -21,6 +21,7 @@ echo "Created ephemeral container from image with tag '${TAG}' to extract static
 
 # Copy out the .next/static folder
 echo "Extracting static assets from container..."
+mkdir -p $LOCAL_STATIC_ASSETS_TARGET_PATH
 docker cp $id:$CONTAINER_STATIC_ASSETS_PATH $LOCAL_STATIC_ASSETS_TARGET_PATH
 echo "Extracted static assets from container"
 
