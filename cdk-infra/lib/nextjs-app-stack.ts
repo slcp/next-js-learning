@@ -2,6 +2,7 @@ import * as cdk from "aws-cdk-lib";
 import {
   AllowedMethods,
   Distribution,
+  OriginAccessIdentity,
   OriginProtocolPolicy,
 } from "aws-cdk-lib/aws-cloudfront";
 import {
@@ -17,11 +18,10 @@ import {
   LogDriver,
 } from "aws-cdk-lib/aws-ecs";
 import { ApplicationLoadBalancedFargateService } from "aws-cdk-lib/aws-ecs-patterns";
-import { Bucket } from "aws-cdk-lib/aws-s3";
+import { Bucket, BucketEncryption } from "aws-cdk-lib/aws-s3";
 
 type Props = cdk.StackProps & {
   containerTarballPath: string;
-  staticAssetsBucketArn: string;
   appPort: number;
 };
 
@@ -32,11 +32,14 @@ export class NextJsAppStack extends cdk.Stack {
     const STATIC_NEXT_PATH = "/_next/static";
     const STATIC_REQUEST_PATH = `${STATIC_NEXT_PATH}/*`;
     const APP_PORT = props.appPort;
-    const staticAssetsBucket = Bucket.fromBucketArn(
-      this,
-      "StaticAssetsBucket",
-      props.staticAssetsBucketArn
-    );
+
+    const staticAssetsBucket = new Bucket(this, "StaticAssets", {
+      encryption: BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      bucketName: "next-static-assets-next-stack-sf",
+      autoDeleteObjects: true,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
 
     // VPC
     const vpc = new Vpc(this, "MyVpc", {
@@ -109,7 +112,15 @@ export class NextJsAppStack extends cdk.Stack {
       }
     );
 
-    const s3Origin = new S3Origin(staticAssetsBucket);
+    // Unable to extract OAI from S3 origin which can create it automatically, required to add permissions to bucket
+    const S3Oai = new OriginAccessIdentity(this, "CloudfrontAccess", {
+      comment: "Cloudfront access for static files",
+    });
+    const s3Origin = new S3Origin(staticAssetsBucket, {
+      originAccessIdentity: S3Oai,
+    });
+    staticAssetsBucket.grantRead(S3Oai);
+
     // Failover to app in ECS - static assets are also baked in, deployment to s3 will never be at the same time exactly
     const staticOriginGroup = new OriginGroup({
       primaryOrigin: s3Origin,
