@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 SCRIPT_DIR=$(dirname "$0")
 LOCAL_STATIC_ASSETS_TARGET_DIR="${SCRIPT_DIR}/../out"
@@ -46,7 +47,7 @@ echo "Extracting bucket name from CDK outputs..."
 bucket_name=$(jq -r ."${NEXT_APP_STACK_NAME}".StaticAssetsBucketOutput $CDK_OUTPUT_FILE_PATH)
 echo "Extracted bucket name from CDK outputs: ${bucket_name}"
 
-Copy static files to S3
+# Copy static files to S3
 echo "Copying static assets to S3..."
 aws s3 cp --recursive $LOCAL_STATIC_ASSETS_TARGET_PATH "s3://${bucket_name}/_next/static"
 echo "Copied static assets to S3"
