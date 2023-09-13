@@ -1,0 +1,1 @@
+npx --yes cdk bootstrap aws://$1/us-east-1
